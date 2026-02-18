@@ -307,7 +307,7 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     vqvae_checkpoint = p1.get("checkpoint", "checkpoints/models/mobilenetv2_8x_vqvae.pth")
     prior_checkpoint = p2.get("checkpoint", "checkpoints/models/pixelsnail_prior.pth")
     checkpoint_dir = str(Path(vqvae_checkpoint).resolve().parent.parent)
-    stats_checkpoint = str(Path(checkpoint_dir, "/stats/"))
+    stats_checkpoint = str(Path(checkpoint_dir, "stats"))
 
     requested = config.get("device", "cuda")
     if requested == "cuda" and not torch.cuda.is_available():
@@ -340,7 +340,7 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
         logger.info("Dataset mean: %.6f | std: %.6f", mean, std)
         save_path = save_train_stats(stats_checkpoint, appliance, mean, std)
         logger.info("Saved train stats to %s", save_path)
-        
+
     dataset_norm = DCASE2020Task2Dataset(
         root_dir=root_dir, appliance=appliance, mode=mode, mean=mean, std=std
     )

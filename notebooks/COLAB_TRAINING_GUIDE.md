@@ -87,11 +87,11 @@ To avoid the slow stats phase when data is on Drive, you can **precompute mean/s
 
 1. **On your laptop** (with the dataset on fast disk), run:
    ```bash
-   python scripts/compute_train_stats.py --root_dir /path/to/dcase2020-task2-dev-dataset --appliance fan --checkpoint_dir checkpoints
+   python scripts/compute_train_stats.py --root_dir /path/to/dcase2020-task2-dev-dataset --appliance fan --checkpoint_dir checkpoints/stats
    ```
-   This creates `checkpoints/fan_train_stats.pt`. Optionally use `--max_samples 2000` for a faster run.
+   This creates `checkpoints/stats/fan_train_stats.pt`. Optionally use `--max_samples 2000` for a faster run.
 
-2. **Upload** `checkpoints/fan_train_stats.pt` to your repo’s `checkpoints/` folder on Drive (or copy it into the cloned project’s checkpoints dir on Colab).
+2. **Upload** `checkpoints/stats/fan_train_stats.pt` to your repo’s `checkpoints/stats/` folder on Drive (or copy it into the cloned project’s checkpoints dir on Colab).
 
 3. When you run training, the code will **load** stats from that file and skip the computation phase. The log will say “Loaded train stats from …”.
 

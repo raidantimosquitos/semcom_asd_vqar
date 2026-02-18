@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Precompute train dataset mean/std locally and save to checkpoints/{appliance}_train_stats.pt.
+Precompute train dataset mean/std locally and save to checkpoints/stats/{appliance}_train_stats.pt.
 Use this on your laptop so Colab can load stats instead of computing them on Drive.
 
-  python scripts/compute_train_stats.py --root_dir /path/to/dcase2020-task2-dev-dataset --appliance fan --checkpoint_dir checkpoints
+  python scripts/compute_train_stats.py --root_dir /path/to/dcase2020-task2-dev-dataset --appliance fan --checkpoint_dir checkpoints/stats
   python scripts/compute_train_stats.py --root_dir /path/to/dataset --appliance fan --checkpoint_dir checkpoints --max_samples 2000
 """
 from __future__ import annotations
@@ -24,11 +24,11 @@ from src.data.preprocessing import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Precompute train mean/std and save to checkpoints/{appliance}_train_stats.pt"
+        description="Precompute train mean/std and save to checkpoints/stats/{appliance}_train_stats.pt"
     )
     parser.add_argument("--root_dir", type=str, required=True, help="Dataset root (e.g. .../dcase2020-task2-dev-dataset)")
     parser.add_argument("--appliance", type=str, default="fan", help="Appliance name (default: fan)")
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints", help="Directory to save stats file")
+    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints/stats", help="Directory to save stats file (default: checkpoints/stats)")
     parser.add_argument(
         "--max_samples",
         type=int,
