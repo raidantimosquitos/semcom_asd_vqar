@@ -306,7 +306,7 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     lr_prior = p2.get("lr", 1e-4)
     vqvae_checkpoint = p1.get("checkpoint", "checkpoints/models/mobilenetv2_8x_vqvae.pth")
     prior_checkpoint = p2.get("checkpoint", "checkpoints/models/pixelsnail_prior.pth")
-    checkpoint_dir = str(Path(vqvae_checkpoint).resolve().parent.parent)
+    checkpoint_dir = str(Path(vqvae_checkpoint).resolve().parent)
     stats_checkpoint = str(Path(checkpoint_dir, "stats"))
 
     requested = config.get("device", "cuda")
