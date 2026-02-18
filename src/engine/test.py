@@ -128,9 +128,35 @@ def run_evaluation(
     logger.info("Computing anomaly scores...")
     scores_mse, scores_nll, labels = compute_anomaly_scores(vqvae, prior, test_dataset, device)
 
+    # Sanity: one score per file (file-level evaluation)
+    n_files = len(test_dataset)
+    assert len(scores_mse) == n_files and len(scores_nll) == n_files and len(labels) == n_files, (
+        "Score count must match number of test files (file-level eval)."
+    )
+
     y_true = np.array(labels, dtype=np.int32)
     y_mse = np.array(scores_mse, dtype=np.float64)
     y_nll = np.array(scores_nll, dtype=np.float64)
+
+    # Diagnostic: score separation. If mean(anomaly) ~ mean(normal), AUC stays ~0.5.
+    # Common causes: train/test domain shift (e.g. different machine IDs), weak features,
+    # or anomalies that look "normal" in log-mel space; try more epochs or different aggregation.
+    n_normal = int((y_true == 0).sum())
+    n_anomaly = int((y_true == 1).sum())
+    logger.info("  File-level: %d files (%d normal, %d anomaly)", n_files, n_normal, n_anomaly)
+    if n_normal > 0 and n_anomaly > 0:
+        mse_normal = float(np.mean(y_mse[y_true == 0]))
+        mse_anomaly = float(np.mean(y_mse[y_true == 1]))
+        nll_normal = float(np.mean(y_nll[y_true == 0]))
+        nll_anomaly = float(np.mean(y_nll[y_true == 1]))
+        logger.info(
+            "  MSE  (normal vs anomaly): mean %.4f vs %.4f (higher=anomaly)",
+            mse_normal, mse_anomaly,
+        )
+        logger.info(
+            "  NLL  (normal vs anomaly): mean %.4f vs %.4f (higher=anomaly)",
+            nll_normal, nll_anomaly,
+        )
 
     auc_mse = roc_auc_score(y_true, y_mse)
     auc_nll = roc_auc_score(y_true, y_nll)
