@@ -63,10 +63,13 @@ def compute_anomaly_scores(
     return scores_mse, scores_nll, labels
 
 
-def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
+def run_evaluation(
+    config: dict[str, Any], logger: logging.Logger
+) -> dict[str, float] | None:
     """
     Run evaluation from config: load test set, VQ-VAE and prior, compute MSE/NLL
     per file, then ROC AUC. All logging via the provided logger.
+    Returns dict with auc_mse, auc_nll, num_test_samples (or None if no test samples).
     """
     data_cfg = config.get("data", {})
     root_dir = data_cfg.get("root_dir", "")
@@ -103,7 +106,7 @@ def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
     )
     if len(test_dataset) == 0:
         logger.warning("No test samples found. Check root_dir and mode='test'.")
-        return
+        return None
 
     logger.info("Test samples: %d", len(test_dataset))
 
@@ -137,6 +140,11 @@ def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
         vqvae_checkpoint=vqvae_checkpoint,
         prior_checkpoint=prior_checkpoint,
     )
+    return {
+        "auc_mse": float(auc_mse),
+        "auc_nll": float(auc_nll),
+        "num_test_samples": len(test_dataset),
+    }
 
 
 def main(
