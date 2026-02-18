@@ -1,38 +1,33 @@
-# Colab: longer epochs, paths for /content or Google Drive.
-# Use after uploading dataset and project to Colab (or mounting Drive).
-#
-# 1) Set data.root_dir to your dataset path (e.g. /content/dataset or /content/drive/MyDrive/...)
-# 2) Set phase1.checkpoint and phase2.checkpoint to save under /content or Drive so they persist.
+# Colab / IDE Colab kernel: longer epochs, paths relative to project root.
+# When using IDE with Colab kernel, project root is the working dir; no clone needed.
+# The notebook overrides data.root_dir, checkpoints, and log_dir from its config cell.
 
 mode: train
 
 data:
-  # CHANGE THIS: path to DCASE2020 Task2 dev dataset on Colab
-  root_dir: "/content/dcase2020-task2-dev-dataset"
+  root_dir: "/content/drive/MyDrive/datasets/dcase2020-task2-dev-dataset"  # overridden by notebook
   appliance: fan
   test_size: 0.1
-  batch_size: 16
+  batch_size: 32
   random_state: 42
   max_samples_stats: null
 
 device: cuda
 
-# Longer epochs for Colab (adjust as needed)
 phase1:
   num_epochs: 50
   lr: 0.001
-  # Save to a path that persists (e.g. Drive or /content)
-  checkpoint: "/content/checkpoints/mobilenetv2_8x_vqvae.pth"
+  checkpoint: "./checkpoints/mobilenetv2_8x_vqvae.pth"
 
 phase2:
   num_epochs: 80
   lr: 0.0001
-  checkpoint: "/content/checkpoints/pixelsnail_prior.pth"
+  checkpoint: "./checkpoints/pixelsnail_prior.pth"
 
 eval:
-  vqvae_checkpoint: "/content/checkpoints/mobilenetv2_8x_vqvae.pth"
-  prior_checkpoint: "/content/checkpoints/pixelsnail_prior.pth"
+  vqvae_checkpoint: "./checkpoints/mobilenetv2_8x_vqvae.pth"
+  prior_checkpoint: "./checkpoints/pixelsnail_prior.pth"
 
 logging:
-  log_dir: "/content/logs"
+  log_dir: "./logs"
   name: "main"

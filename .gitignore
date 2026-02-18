@@ -1,0 +1,22 @@
+# VSCode configuration
+.vscode/
+
+# Python configuration
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+# Model checkpoints
+checkpoints/
+
+# Data
+data/
+
+# Logs
+logs/
+
+# Results
+results/
