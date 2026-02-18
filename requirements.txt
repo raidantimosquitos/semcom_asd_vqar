@@ -1,0 +1,11 @@
+# Python 3.9+
+
+torch==2.5.1
+torchaudio==2.5.1
+torchvision==0.20.1
+numpy==1.26.4
+scikit-learn==1.7.2
+pyyaml==6.0.3
+
+# Optional: for log_model_summary(use_torchsummary=True) in src.utils.logger
+torchsummary==1.5.1

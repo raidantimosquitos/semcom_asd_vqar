@@ -1,0 +1,38 @@
+# Default config. Override with --config path or CLI.
+# Run: python -m src.main --config configs/default.yaml --mode train
+#      python -m src.main --config configs/default.yaml --mode eval
+
+mode: train  # train | eval
+
+data:
+  root_dir: "/mnt/ssd/LaCie/dcase2020-task2-dev-dataset"
+  appliance: fan
+  test_size: 0.1
+  batch_size: 8
+  random_state: 42
+  # Max samples for computing dataset mean/std (null = use all)
+  max_samples_stats: null
+
+device: cuda  # cuda | cpu
+
+# Phase 1: VQ-VAE
+phase1:
+  num_epochs: 10
+  lr: 0.001
+  checkpoint: "checkpoints/mobilenetv2_8x_vqvae.pth"
+
+# Phase 2: PixelSNAIL prior (after VQ-VAE)
+phase2:
+  num_epochs: 20
+  lr: 0.0001
+  checkpoint: "checkpoints/pixelsnail_prior.pth"
+
+# Evaluation (used when mode: eval)
+eval:
+  vqvae_checkpoint: "checkpoints/mobilenetv2_8x_vqvae.pth"
+  prior_checkpoint: "checkpoints/pixelsnail_prior.pth"
+
+# Logging
+logging:
+  log_dir: "logs"
+  name: "main"
