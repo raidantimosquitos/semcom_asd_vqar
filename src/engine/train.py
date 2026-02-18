@@ -300,7 +300,13 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     vqvae_checkpoint = p1.get("checkpoint", "checkpoints/mobilenetv2_8x_vqvae.pth")
     prior_checkpoint = p2.get("checkpoint", "checkpoints/pixelsnail_prior.pth")
 
-    device = torch.device(config.get("device", "cuda") if torch.cuda.is_available() else "cpu")
+    requested = config.get("device", "cuda")
+    if requested == "cuda" and not torch.cuda.is_available():
+        logger.warning(
+            "Config has device=cuda but CUDA is not available (e.g. Colab runtime is CPU). "
+            "Use Runtime → Change runtime type → GPU, then re-run. Falling back to CPU."
+        )
+    device = torch.device(requested if torch.cuda.is_available() else "cpu")
     log_config(logger, config=config)
     logger.info("Device: %s", device)
 
