@@ -38,14 +38,25 @@ semcom_asd_vqar/
 ### Config (YAML)
 
 - **mode**: `train` or `eval`
+- **checkpoints**: `dir` (root directory; default `checkpoints`). Models go to `{dir}/models/`, stats to `{dir}/stats/`.
 - **data**: `root_dir` (dataset path), `appliance` (e.g. `fan`), `test_size`, `batch_size`, `random_state`, `max_samples_stats`
 - **device**: `cuda` or `cpu`
-- **phase1**: VQ-VAE — `num_epochs`, `lr`, `checkpoint` (save path)
+- **phase1**: VQ-VAE — `num_epochs`, `lr`, `checkpoint` (save path, typically `{checkpoints.dir}/models/...`)
 - **phase2**: PixelSNAIL prior — `num_epochs`, `lr`, `checkpoint`
 - **eval**: `vqvae_checkpoint`, `prior_checkpoint` (for evaluation)
 - **logging**: `log_dir`, `name`
 
-The notebook uses `configs/colab.yaml` and overrides `data.root_dir`, checkpoint paths, and `logging.log_dir` from its config cell.
+**Checkpoint layout** (best practice):
+```
+checkpoints/
+├── models/          # VQ-VAE and PixelSNAIL prior .pth files
+│   ├── mobilenetv2_8x_vqvae.pth
+│   └── pixelsnail_prior.pth
+└── stats/           # Precomputed train mean/std per appliance
+    └── {appliance}_train_stats.pt
+```
+
+The notebook uses `configs/colab.yaml` and overrides `data.root_dir`, `checkpoints.dir`, checkpoint paths, and `logging.log_dir` from its config cell.
 
 ### Data format (DCASE 2020 Task 2 dev)
 
@@ -184,26 +195,27 @@ DATA_ROOT = "/content/drive/MyDrive/datasets/dcase2020-task2-dev-dataset"
 
 # Where to save models and logs (inside the cloned project on Drive)
 CHECKPOINT_DIR = "./checkpoints"
+MODELS_DIR = f"{CHECKPOINT_DIR}/models"
 LOG_DIR = "./logs"
 
 OVERRIDES = {
     "data": {"root_dir": DATA_ROOT},
     "phase1": {
         "num_epochs": 50,
-        "checkpoint": f"{CHECKPOINT_DIR}/mobilenetv2_8x_vqvae.pth",
+        "checkpoint": f"{MODELS_DIR}/mobilenetv2_8x_vqvae.pth",
     },
     "phase2": {
         "num_epochs": 80,
-        "checkpoint": f"{CHECKPOINT_DIR}/pixelsnail_prior.pth",
+        "checkpoint": f"{MODELS_DIR}/pixelsnail_prior.pth",
     },
     "eval": {
-        "vqvae_checkpoint": f"{CHECKPOINT_DIR}/mobilenetv2_8x_vqvae.pth",
-        "prior_checkpoint": f"{CHECKPOINT_DIR}/pixelsnail_prior.pth",
+        "vqvae_checkpoint": f"{MODELS_DIR}/mobilenetv2_8x_vqvae.pth",
+        "prior_checkpoint": f"{MODELS_DIR}/pixelsnail_prior.pth",
     },
     "logging": {"log_dir": LOG_DIR},
 }
 
-os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 ```
 

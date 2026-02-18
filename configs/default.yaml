@@ -1,8 +1,16 @@
 # Default config. Override with --config path or CLI.
 # Run: python -m src.main --config configs/default.yaml --mode train
 #      python -m src.main --config configs/default.yaml --mode eval
+#
+# Checkpoint layout:
+#   checkpoints/
+#   ├── models/     # VQ-VAE and PixelSNAIL prior .pth
+#   └── stats/      # {appliance}_train_stats.pt (precomputed mean/std)
 
 mode: train  # train | eval
+
+checkpoints:
+  dir: "checkpoints"
 
 data:
   root_dir: "/mnt/ssd/LaCie/dcase2020-task2-dev-dataset"
@@ -19,18 +27,18 @@ device: cuda  # cuda | cpu
 phase1:
   num_epochs: 10
   lr: 0.001
-  checkpoint: "checkpoints/mobilenetv2_8x_vqvae.pth"
+  checkpoint: "checkpoints/models/mobilenetv2_8x_vqvae.pth"
 
 # Phase 2: PixelSNAIL prior (after VQ-VAE)
 phase2:
   num_epochs: 20
   lr: 0.0001
-  checkpoint: "checkpoints/pixelsnail_prior.pth"
+  checkpoint: "checkpoints/models/pixelsnail_prior.pth"
 
 # Evaluation (used when mode: eval)
 eval:
-  vqvae_checkpoint: "checkpoints/mobilenetv2_8x_vqvae.pth"
-  prior_checkpoint: "checkpoints/pixelsnail_prior.pth"
+  vqvae_checkpoint: "checkpoints/models/mobilenetv2_8x_vqvae.pth"
+  prior_checkpoint: "checkpoints/models/pixelsnail_prior.pth"
 
 # Logging
 logging:

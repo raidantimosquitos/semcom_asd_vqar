@@ -15,9 +15,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score, roc_curve
 
-from src.data.preprocessing import DCASE2020Task2Dataset, compute_dataset_stats
+from src.data.preprocessing import DCASE2020Task2Dataset, compute_dataset_stats, load_train_stats
 from src.models.autoencoders import MobileNetV2_8x_VQVAE
 from src.models.pixelsnail import create_pixelsnail_for_vqvae
+from src.utils.config import get_checkpoint_paths
 from src.utils.logger import log_eval_results
 
 
@@ -71,8 +72,8 @@ def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
     root_dir = data_cfg.get("root_dir", "")
     appliance = data_cfg.get("appliance", "fan")
     eval_cfg = config.get("eval", {})
-    vqvae_checkpoint = eval_cfg.get("vqvae_checkpoint", "checkpoints/mobilenetv2_8x_vqvae.pth")
-    prior_checkpoint = eval_cfg.get("prior_checkpoint", "checkpoints/pixelsnail_prior.pth")
+    vqvae_checkpoint = eval_cfg.get("vqvae_checkpoint", "checkpoints/models/mobilenetv2_8x_vqvae.pth")
+    prior_checkpoint = eval_cfg.get("prior_checkpoint", "checkpoints/models/pixelsnail_prior.pth")
     max_samples_stats = data_cfg.get("max_samples_stats")
 
     device = torch.device(
@@ -81,11 +82,17 @@ def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
     logger.info("Evaluation config: root_dir=%s, appliance=%s", root_dir, appliance)
     logger.info("Device: %s", device)
 
-    # Normalization: use train set (same as training)
-    logger.info("Loading train set for normalization stats...")
-    train_dataset_raw = DCASE2020Task2Dataset(root_dir=root_dir, appliance=appliance, mode="train")
-    mean, std = compute_dataset_stats(train_dataset_raw, max_samples=max_samples_stats)
-    logger.info("Normalization: mean=%.4f, std=%.4f", mean, std)
+    # Normalization: load precomputed stats if available (same as training), else compute
+    _, stats_dir = get_checkpoint_paths(config)
+    stats_loaded = load_train_stats(stats_dir, appliance)
+    if stats_loaded is not None:
+        mean, std = stats_loaded
+        logger.info("Loaded normalization stats from %s: mean=%.4f, std=%.4f", stats_dir, mean, std)
+    else:
+        logger.info("Precomputed stats not found; computing from train set...")
+        train_dataset_raw = DCASE2020Task2Dataset(root_dir=root_dir, appliance=appliance, mode="train")
+        mean, std = compute_dataset_stats(train_dataset_raw, max_samples=max_samples_stats)
+        logger.info("Normalization: mean=%.4f, std=%.4f", mean, std)
 
     test_dataset = DCASE2020Task2Dataset(
         root_dir=root_dir,
@@ -135,8 +142,8 @@ def run_evaluation(config: dict[str, Any], logger: logging.Logger) -> None:
 def main(
     root_dir: str,
     appliance: str = "fan",
-    vqvae_checkpoint: str = "checkpoints/mobilenetv2_8x_vqvae.pth",
-    prior_checkpoint: str = "checkpoints/pixelsnail_prior.pth",
+    vqvae_checkpoint: str = "checkpoints/models/mobilenetv2_8x_vqvae.pth",
+    prior_checkpoint: str = "checkpoints/models/pixelsnail_prior.pth",
     device: str | torch.device | None = None,
     logger: logging.Logger | None = None,
 ) -> None:
@@ -161,8 +168,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate anomaly detection (ROC AUC) with MSE and PixelSNAIL NLL.")
     parser.add_argument("--root_dir", type=str, default="/mnt/ssd/LaCie/dcase2020-task2-dev-dataset", help="Dataset root.")
     parser.add_argument("--appliance", type=str, default="fan", help="Appliance name.")
-    parser.add_argument("--vqvae", type=str, default="checkpoints/mobilenetv2_8x_vqvae.pth", help="VQ-VAE checkpoint.")
-    parser.add_argument("--prior", type=str, default="checkpoints/pixelsnail_prior.pth", help="PixelSNAIL prior checkpoint.")
+    parser.add_argument("--vqvae", type=str, default="checkpoints/models/mobilenetv2_8x_vqvae.pth", help="VQ-VAE checkpoint.")
+    parser.add_argument("--prior", type=str, default="checkpoints/models/pixelsnail_prior.pth", help="PixelSNAIL prior checkpoint.")
     parser.add_argument("--device", type=str, default=None, help="Device (cuda/cpu).")
     args = parser.parse_args()
 

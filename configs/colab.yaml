@@ -1,8 +1,13 @@
 # Colab / IDE Colab kernel: longer epochs, paths relative to project root.
 # When using IDE with Colab kernel, project root is the working dir; no clone needed.
-# The notebook overrides data.root_dir, checkpoints, and log_dir from its config cell.
+# The notebook overrides data.root_dir, checkpoints.dir, and log_dir from its config cell.
+#
+# Checkpoint layout: checkpoints/{models,stats}/
 
 mode: train
+
+checkpoints:
+  dir: "./checkpoints"
 
 data:
   root_dir: "/content/drive/MyDrive/datasets/dcase2020-task2-dev-dataset"  # overridden by notebook
@@ -16,17 +21,17 @@ device: cuda
 
 phase1:
   num_epochs: 50
-  lr: 2e-3
-  checkpoint: "./checkpoints/mobilenetv2_8x_vqvae.pth"
+  lr: 0.002
+  checkpoint: "./checkpoints/models/mobilenetv2_8x_vqvae.pth"
 
 phase2:
   num_epochs: 80
-  lr: 2e-4
-  checkpoint: "./checkpoints/pixelsnail_prior.pth"
+  lr: 0.0002
+  checkpoint: "./checkpoints/models/pixelsnail_prior.pth"
 
 eval:
-  vqvae_checkpoint: "./checkpoints/mobilenetv2_8x_vqvae.pth"
-  prior_checkpoint: "./checkpoints/pixelsnail_prior.pth"
+  vqvae_checkpoint: "./checkpoints/models/mobilenetv2_8x_vqvae.pth"
+  prior_checkpoint: "./checkpoints/models/pixelsnail_prior.pth"
 
 logging:
   log_dir: "./logs"

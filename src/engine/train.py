@@ -11,6 +11,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
 
+from src.utils.config import get_checkpoint_paths
 from src.data.preprocessing import (
     DCASE2020Task2Dataset,
     compute_dataset_stats,
@@ -304,10 +305,9 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     num_epochs_prior = p2.get("num_epochs", 20)
     lr_vqvae = p1.get("lr", 0.001)
     lr_prior = p2.get("lr", 1e-4)
+    _, stats_dir = get_checkpoint_paths(config)
     vqvae_checkpoint = p1.get("checkpoint", "checkpoints/models/mobilenetv2_8x_vqvae.pth")
     prior_checkpoint = p2.get("checkpoint", "checkpoints/models/pixelsnail_prior.pth")
-    checkpoint_dir = str(Path(vqvae_checkpoint).resolve().parent)
-    stats_checkpoint = str(Path(checkpoint_dir, "stats"))
 
     requested = config.get("device", "cuda")
     if requested == "cuda" and not torch.cuda.is_available():
@@ -321,12 +321,12 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
 
     # Data: load precomputed train stats if present, else compute and save
     dataset = DCASE2020Task2Dataset(root_dir=root_dir, appliance=appliance, mode=mode)
-    stats_loaded = load_train_stats(stats_checkpoint, appliance)
+    stats_loaded = load_train_stats(stats_dir, appliance)
     if stats_loaded is not None:
         mean, std = stats_loaded
         logger.info(
             "Loaded train stats from %s: mean=%.6f | std=%.6f",
-            train_stats_path(stats_checkpoint, appliance),
+            train_stats_path(stats_dir, appliance),
             mean,
             std,
         )
@@ -338,7 +338,7 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
         )
         mean, std = compute_dataset_stats(dataset, max_samples=max_samples_stats, logger=logger)
         logger.info("Dataset mean: %.6f | std: %.6f", mean, std)
-        save_path = save_train_stats(stats_checkpoint, appliance, mean, std)
+        save_path = save_train_stats(stats_dir, appliance, mean, std)
         logger.info("Saved train stats to %s", save_path)
 
     dataset_norm = DCASE2020Task2Dataset(
@@ -362,6 +362,8 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     )
 
     # Phase 1: VQ-VAE
+    Path(vqvae_checkpoint).parent.mkdir(parents=True, exist_ok=True)
+    Path(prior_checkpoint).parent.mkdir(parents=True, exist_ok=True)
     vqvae = MobileNetV2_8x_VQVAE().to(device)
     if os.path.exists(vqvae_checkpoint):
         logger.info("Loading VQ-VAE from %s", vqvae_checkpoint)

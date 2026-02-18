@@ -9,31 +9,31 @@ from torch.utils.data import Dataset
 from src.utils.audio import collect_audio_files, load_wav, LogMelSpectrogramExtractor
 
 
-# Convention: stats saved under checkpoints as {appliance}_train_stats.pt
-def train_stats_path(checkpoint_dir: str | Path, appliance: str) -> Path:
+# Stats path: {stats_dir}/{appliance}_train_stats.pt (stats_dir = checkpoints/stats)
+def train_stats_path(stats_dir: str | Path, appliance: str) -> Path:
     """Path to saved train (mean, std) stats for an appliance."""
-    return Path(checkpoint_dir) / f"{appliance}_train_stats.pt"
+    return Path(stats_dir) / f"{appliance}_train_stats.pt"
 
 
 def save_train_stats(
-    checkpoint_dir: str | Path,
+    stats_dir: str | Path,
     appliance: str,
     mean: float,
     std: float,
 ) -> Path:
-    """Save train dataset mean/std to checkpoints/{appliance}_train_stats.pt."""
-    path = train_stats_path(checkpoint_dir, appliance)
+    """Save train dataset mean/std to stats_dir/{appliance}_train_stats.pt."""
+    path = train_stats_path(stats_dir, appliance)
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"mean": mean, "std": std}, path)
     return path
 
 
 def load_train_stats(
-    checkpoint_dir: str | Path,
+    stats_dir: str | Path,
     appliance: str,
 ) -> tuple[float, float] | None:
-    """Load train mean/std from checkpoints/{appliance}_train_stats.pt if it exists."""
-    path = train_stats_path(checkpoint_dir, appliance)
+    """Load train mean/std from stats_dir/{appliance}_train_stats.pt if it exists."""
+    path = train_stats_path(stats_dir, appliance)
     if not path.exists():
         return None
     data = torch.load(path, weights_only=True)
