@@ -29,9 +29,9 @@ def compute_anomaly_scores(
     device: torch.device,
 ) -> tuple[list[float], list[float], list[int]]:
     """
-    For each test sample (file), compute:
-    - MSE: mean squared error between input windows and VQ-VAE reconstruction (higher = anomaly).
-    - NLL: PixelSNAIL negative log-likelihood on code indices (higher = anomaly).
+    For each test sample (file), compute one score per file from its windows:
+    - MSE: reconstruction error; NLL: PixelSNAIL negative log-likelihood (higher = anomaly).
+    File score = max over windows (DCASE 2020 Task 2: one anomalous window → file anomalous).
     Returns:
         (scores_mse, scores_nll, labels) per file.
     """
@@ -49,14 +49,17 @@ def compute_anomaly_scores(
         with torch.no_grad():
             # Reconstruction MSE
             x_recon, _, _ = vqvae(windows)
-            mse = F.mse_loss(windows, x_recon, reduction="mean").item()
-            scores_mse.append(mse)
+            mse_tensor = F.mse_loss(windows, x_recon, reduction="none")
+            mse_per_window = mse_tensor.view(windows.shape[0], -1).mean(dim=1)
+            mse_file = mse_per_window.max().item()
+            scores_mse.append(mse_file)
 
             # PixelSNAIL NLL on code indices
             indices = vqvae.encode_to_indices(windows)
-            loss_dict = prior.loss(indices, reduction="mean")
-            nll = loss_dict["loss"].item()
-            scores_nll.append(nll)
+            loss_dict = prior.loss(indices, reduction="none")
+            nll_per_window = loss_dict["loss"].view(windows.shape[0], -1).mean(dim=1)
+            nll_file = nll_per_window.max().item()
+            scores_nll.append(nll_file)
 
         labels.append(label)
 
