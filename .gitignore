@@ -12,8 +12,8 @@ __pycache__/
 # Model checkpoints
 checkpoints/
 
-# Data
-data/
+# Data (only root-level; do not ignore src/data/)
+/data/
 
 # Logs
 logs/
