@@ -23,11 +23,18 @@ data:
 
 device: cuda  # cuda | cpu
 
-# Phase 1: VQ-VAE
+# Phase 1: VQ-VAE (optionally 3 sub-phases with MachineID classifier)
 phase1:
-  num_epochs: 10
+  num_epochs: 10  # used only when phase1a_epochs not set (single-phase VQ-VAE only)
+  # Three-phase schedule: 1a = VQ-VAE only, 1b = VQ-VAE + classifier, 1c = frozen codebook + recon + classifier
+  phase1a_epochs: null  # e.g. 30; null = use num_epochs and skip 1b/1c
+  phase1b_epochs: null  # e.g. 50
+  phase1c_epochs: null  # e.g. 20
+  lambda_1: 1.0   # weight for VQ-VAE loss (recon + vq)
+  lambda_2: 0.5   # weight for machine_id classifier CE loss (phases 1b/1c)
   lr: 0.001
   checkpoint: "checkpoints/models/mobilenetv2_8x_vqvae.pth"
+  classifier_checkpoint: "checkpoints/models/machine_id_classifier.pth"
 
 # Phase 2: PixelSNAIL prior (after VQ-VAE)
 phase2:

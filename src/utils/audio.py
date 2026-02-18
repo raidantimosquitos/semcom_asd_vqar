@@ -79,30 +79,31 @@ def collect_audio_files(
     appliance: str,
     mode: str = "train", # train or test
     ext: str = "wav",
-) -> list[tuple[str, int]]:
+) -> list[tuple[str, str, int]]:
     """
-    Collect (audio file path, label) pairs from the root directory.
+    Collect (audio file path, machine_id, label) triplets from the root directory.
 
     Returns:
-        List of (path, label) tuples. Label 0 = normal, 1 = anomaly.
-        Use a list of tuples so the Dataset keeps each pair in sync and
+        List of (path, machine_id, label) tuples. Label 0 = normal, 1 = anomaly.
+        Use a list of tuples so the Dataset keeps each triplet in sync and
         __getitem__(i) is a single index.
     """
     base_dir = os.path.join(root_dir, appliance, mode)
+    triplets: list[tuple[str, str, int]] = []
     # DCASE 2020 Task 2 dev: train has only normal files directly in base_dir (no "normal" subfolder)
     if mode == "train":
         files = sorted(glob.glob(os.path.join(base_dir, f"*.{ext}")))
-        return [(p, 0) for p in files]
+        for p in files:
+            name = os.path.basename(p)
+            machine_id = name.split("_")[1] + "_" + name.split("_")[2]
+            triplets.append((p, machine_id, 0))
     if mode == "test":
         # Some DCASE layouts store all files directly in base_dir; label is encoded in filename.
         # e.g. normal_id_00_*.wav / anomaly_id_00_*.wav
         files = sorted(glob.glob(os.path.join(base_dir, f"*.{ext}")))
-        pairs: list[tuple[str, int]] = []
         for p in files:
             name = os.path.basename(p)
-            if name.startswith("normal"):
-                pairs.append((p, 0))
-            elif name.startswith("anomaly"):
-                pairs.append((p, 1))
-        return pairs
-    return []
+            machine_id = name.split("_")[1] + "_" + name.split("_")[2]
+            label = 0 if name.startswith("normal") else 1
+            triplets.append((p, machine_id, label))
+    return triplets

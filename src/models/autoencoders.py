@@ -49,7 +49,13 @@ class CNNAutoEncoder(nn.Module):
         return x_recon
 
 class CNNVQVAE(nn.Module):
-    def __init__(self, in_channels=1, latent_channels=128, num_embeddings=64, embedding_dim=8, commitment_cost=0.25):
+    def __init__(self, 
+        in_channels=1, 
+        latent_channels=128, 
+        num_embeddings=64, 
+        embedding_dim=8, 
+        commitment_cost=0.25
+        ):
         super(CNNVQVAE, self).__init__()
         self.encoder = CNNEncoder(in_channels=in_channels, latent_channels=latent_channels)
         self._pre_vq_layer = nn.Conv2d(latent_channels, embedding_dim, kernel_size=1, stride=1)
@@ -132,10 +138,14 @@ class MobileNetV2_8x_VQVAE(nn.Module):
         x_recon = self.decoder(z_q)
         return x_recon, vq_loss, perplexity
 
+    def get_encoder_latent(self, x: torch.Tensor) -> torch.Tensor:
+        """Return continuous latent (B, C, H, W) before quantization, for e.g. classifier head."""
+        z_e = self.encoder(x)
+        return self._pre_vq(z_e)  # (B, embedding_dim, 8, 16)
+
     def encode_to_indices(self, x: torch.Tensor) -> torch.Tensor:
         """Encode spectrograms to discrete code indices (B, H, W) for e.g. PixelSNAIL training."""
-        z_e = self.encoder(x)
-        z_e = self._pre_vq(z_e)  # (B, C, H, W)
+        z_e = self.get_encoder_latent(x)  # (B, C, H, W)
         B, C, H, W = z_e.shape
         flat = z_e.permute(0, 2, 3, 1).reshape(-1, C)
         distances = (

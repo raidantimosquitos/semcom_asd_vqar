@@ -64,7 +64,7 @@ class DCASE2020Task2Dataset(Dataset):
         self.mode = mode
         self.ext = ext
         self.sample_rate = sample_rate
-        self.samples: list[tuple[str, int]] = collect_audio_files(
+        self.samples: list[tuple[str, str, int]] = collect_audio_files(
             self.root_dir, self.appliance, self.mode, self.ext
         )
 
@@ -86,16 +86,21 @@ class DCASE2020Task2Dataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, str]:
-        """Return (windows, label, wav_path). Windows are normalized if mean/std were set."""
-        wav_path, label = self.samples[idx]
+    @property
+    def unique_machine_ids(self) -> list[str]:
+        """Sorted unique machine IDs in this dataset (for building machine_id -> index maps)."""
+        return sorted(set(mid for _, mid, _ in self.samples))
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, str, int, str]:
+        """Return (windows, machine_id, label, wav_path). Windows are normalized if mean/std were set."""
+        wav_path, machine_id, label = self.samples[idx]
         waveform = load_wav(wav_path, self.sample_rate)
         windows = self.extractor(waveform)
 
         if self._mean is not None and self._std is not None:
             windows = (windows - self._mean) / (self._std + self._norm_eps)
 
-        return windows, label, wav_path
+        return windows, machine_id, label, wav_path
 
 
 def compute_dataset_stats(
@@ -121,7 +126,7 @@ def compute_dataset_stats(
     total_sq = 0.0
     count = 0
     for i in range(n):
-        windows, _, _ = dataset[i]
+        windows, _, _, _ = dataset[i]
         total_sum += windows.sum().item()
         total_sq += (windows ** 2).sum().item()
         count += windows.numel()
@@ -158,7 +163,7 @@ if __name__ == "__main__":
     )
 
     print(len(dataset_norm))
-    w, label, path = dataset_norm[0]
+    w, machine_id, label, path = dataset_norm[0]
     print("First sample shape:", w.shape)
     print("First sample (normalized) mean ~0, std ~1:", w.mean().item(), w.std().item())
 

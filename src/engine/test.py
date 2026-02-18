@@ -42,7 +42,7 @@ def compute_anomaly_scores(
     labels: list[int] = []
 
     for idx in range(len(test_dataset)):
-        windows, label, _ = test_dataset[idx]
+        windows, machine_id, label, _ = test_dataset[idx]
         # windows: (N, 1, 64, 128)
         windows = windows.to(device)
 
@@ -115,14 +115,14 @@ def run_evaluation(
 
     logger.info("Loading VQ-VAE from %s", vqvae_checkpoint)
     vqvae = MobileNetV2_8x_VQVAE().to(device)
-    vqvae.load_state_dict(torch.load(vqvae_checkpoint, map_location=device))
+    vqvae.load_state_dict(torch.load(vqvae_checkpoint, map_location=device, weights_only=True))
     vqvae.eval()
     for p in vqvae.parameters():
         p.requires_grad = False
 
     logger.info("Loading prior from %s", prior_checkpoint)
     prior = create_pixelsnail_for_vqvae(vqvae).to(device)
-    prior.load_state_dict(torch.load(prior_checkpoint, map_location=device))
+    prior.load_state_dict(torch.load(prior_checkpoint, map_location=device, weights_only=True))
     prior.eval()
 
     logger.info("Computing anomaly scores...")

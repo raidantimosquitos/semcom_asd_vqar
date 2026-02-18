@@ -3,20 +3,15 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-def mlp_block(in_dim, out_dim):
-    return nn.Sequential(
-        nn.Linear(in_dim, out_dim),
-        nn.BatchNorm1d(out_dim),
-        nn.ReLU(inplace=True),
-    )
+from src.models.nn_blocks import _mlp_block, _deconv_block, ResBlock
 
 class BasicDecoder(nn.Module):
     def __init__(self, z_dim=32, x_dim=8192, h_dim=256):
         super().__init__()
         self.dec = nn.Sequential(
-            mlp_block(z_dim, h_dim),
-            mlp_block(h_dim, h_dim),
-            mlp_block(h_dim, h_dim),
+            _mlp_block(z_dim, h_dim),
+            _mlp_block(h_dim, h_dim),
+            _mlp_block(h_dim, h_dim),
             nn.Linear(h_dim, x_dim) 
         )
 
@@ -25,23 +20,27 @@ class BasicDecoder(nn.Module):
         x_recon = self.dec(z)
         return x_recon
 
-def deconv_block(in_ch: int, out_ch: int) -> nn.Module:
-    return nn.Sequential(
-        nn.ConvTranspose2d(in_ch, out_ch, kernel_size=4, stride=2, padding=1),
-        nn.BatchNorm2d(out_ch),
-        nn.ReLU(inplace=True),
-    )
-
 class CNNDecoder(nn.Module):
     def __init__(self, latent_channels: int = 128, out_channels: int = 1):
         super(CNNDecoder, self).__init__()
-        self.latent_channels = latent_channels
-        self.out_channels = out_channels
-        self.blocks = nn.Sequential(
-            deconv_block(latent_channels, 64),
-            deconv_block(64, 32),
-            deconv_block(32, out_channels),
+        self._out_channels = out_channels
+        # 8x16xD -> 8x16x128
+        self.proj = nn.Sequential(
+            nn.Conv2d(latent_channels, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ELU(inplace=True),
         )
+        self.res1 = ResBlock(128)
+
+        # 8x16x128 -> 16x32x64
+        self.deconv1 = _deconv_block(128, 64)
+        self.res2 = ResBlock(64)
+
+        # 16x32x64 -> 32x64x32
+        self.deconv2 = _deconv_block(64, 32)
+
+        # 32x64x32 -> 64x128x1
+        self.deconv3 = nn.ConvTranspose2d(32, out_channels, kernel_size=4, stride=2, padding=1)
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         """
@@ -50,8 +49,13 @@ class CNNDecoder(nn.Module):
         Returns:
             (B, 1, 64, 128)
         """
-        x = self.blocks(z)
-        return x
+        z = self.proj(z)
+        z = self.res1(z)
+        z = self.deconv1(z)
+        z = self.res2(z)
+        z = self.deconv2(z)
+        z = self.deconv3(z)
+        return z
 
 class MobileNetV2_8x_Decoder(nn.Module):
     """
@@ -93,12 +97,12 @@ class MobileNetV2_8x_Decoder(nn.Module):
 
 
 if __name__ == "__main__":
-    # AE: decoder receives encoder output channels (32)
-    latent_ae = torch.randn(1, 32, 8, 16)
-    decoder_ae = MobileNetV2_8x_Decoder(latent_channels=32, out_channels=1)
+    # AE: decoder receives encoder output channels (128)
+    latent_ae = torch.randn(1, 128, 8, 16)
+    decoder_ae = CNNDecoder(latent_channels=128, out_channels=1)
     print("AE decoder:", decoder_ae(latent_ae).shape)  # [1, 1, 64, 128]
 
-    # VQ-VAE: decoder receives embedding_dim (e.g. 64)
-    latent_vq = torch.randn(1, 64, 8, 16)
-    decoder_vq = MobileNetV2_8x_Decoder(latent_channels=64, out_channels=1)
+    # VQ-VAE: decoder receives embedding_dim (e.g. 128)
+    latent_vq = torch.randn(1, 128, 8, 16)
+    decoder_vq = CNNDecoder(latent_channels=128, out_channels=1)
     print("VQ-VAE decoder:", decoder_vq(latent_vq).shape)  # [1, 1, 64, 128]

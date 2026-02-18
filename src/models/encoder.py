@@ -4,13 +4,9 @@ import torch
 import torch.nn as nn
 from torchvision.models import mobilenet_v2
 from torchvision.models import MobileNet_V2_Weights
+import torch.nn.functional as F
 
-def _mlp_block(in_dim, out_dim):
-    return nn.Sequential(
-        nn.Linear(in_dim, out_dim),
-        nn.BatchNorm1d(out_dim),
-        nn.ReLU(inplace=True),
-    )
+from src.models.nn_blocks import _mlp_block, _cnn_block, ResBlock
 
 class BasicEncoder(nn.Module):
     def __init__(self, x_dim=8192, z_dim=32, h_dim=256):
@@ -27,17 +23,9 @@ class BasicEncoder(nn.Module):
         z = self.enc(x)
         return z
 
-def _cnn_block(in_ch: int, out_ch: int) -> nn.Module:
-    """Conv2d(3x3, stride=1, padding=1) + ReLU + MaxPool2d(2). Halves H and W."""
-    return nn.Sequential(
-        nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(inplace=True),
-        nn.MaxPool2d(kernel_size=2, stride=2),
-    )
-
 class CNNEncoder(nn.Module):
     """
-    Simple encoder: 3 blocks of Conv2d + ReLU + MaxPool. H and W are halved three times.
+    CNNE
     Input:  (B, in_channels, H, W)  e.g. (B, 1, 64, 128)
     Output: (B, latent_channels, H/8, W/8)  e.g. (B, latent_channels, 8, 16)
     """
@@ -45,18 +33,27 @@ class CNNEncoder(nn.Module):
     def __init__(self, in_channels: int, latent_channels: int):
         super(CNNEncoder, self).__init__()
         self._out_channels = latent_channels
-        self.blocks = nn.Sequential(
-            _cnn_block(in_channels, 32),
-            _cnn_block(32, 64),
-            _cnn_block(64, latent_channels),
-        )
+        self.cnn1 = _cnn_block(in_channels, 32)
+        self.cnn2 = _cnn_block(32, 64)
+        self.residual1 = ResBlock(64)
+        self.residual2 = ResBlock(64)
+        self.cnn3 = _cnn_block(64, latent_channels)
+        self.residual3 = ResBlock(latent_channels)
+        self.residual4 = ResBlock(latent_channels)
 
     @property
     def out_channels(self) -> int:
         return self._out_channels
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.blocks(x)
+        x = self.cnn1(x)    
+        x = self.cnn2(x)
+        x = self.residual1(x)
+        x = self.residual2(x)
+        x = self.cnn3(x)
+        x = self.residual3(x)
+        x = self.residual4(x)
+        return x
 
 # --- MobileNetV2 encoder (for spectrogram input 64×128) ---
 
@@ -85,7 +82,7 @@ class MobileNetV2_8x_Encoder(nn.Module):
 
 if __name__ == "__main__":
     dummy_input = torch.randn(1, 1, 64, 128)
-    model = MobileNetV2_8x_Encoder(pretrained=False)
+    model = CNNEncoder(in_channels=1, latent_channels=128)
     output = model(dummy_input)
     print(f"Input shape: {dummy_input.shape}")
     print(f"Output shape: {output.shape}")
