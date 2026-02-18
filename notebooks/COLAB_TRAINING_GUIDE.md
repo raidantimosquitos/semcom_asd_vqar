@@ -75,6 +75,26 @@ Example:
 
 Entry point: `run(config_path=..., overrides=..., mode="train"|"eval", log_dir=...)` from `src.main`.
 
+### Logging
+
+- **Where:** `main.run()` creates a logger that writes to **both** the notebook (stdout) and a file: `{log_dir}/{name}_{mode}.log` (e.g. `./logs/main_train.log`). On Colab with the clone on Drive, that file is under the repo folder on Drive.
+- **When:** The file handler flushes after every log line so lines appear on disk (and in Drive) immediately. If you see no file or no new lines, the process may still be in the **dataset stats** phase (see troubleshooting below).
+- **What:** Config and device at start; then “Computing dataset mean/std…” or “Loaded train stats from …”; then “Data loading”; then per-epoch train/val losses (Phase 1 VQ-VAE, then Phase 2 prior).
+
+### Precomputed train stats (optional)
+
+To avoid the slow stats phase when data is on Drive, you can **precompute mean/std locally** and put the file in the checkpoints directory so Colab loads it:
+
+1. **On your laptop** (with the dataset on fast disk), run:
+   ```bash
+   python scripts/compute_train_stats.py --root_dir /path/to/dcase2020-task2-dev-dataset --appliance fan --checkpoint_dir checkpoints
+   ```
+   This creates `checkpoints/fan_train_stats.pt`. Optionally use `--max_samples 2000` for a faster run.
+
+2. **Upload** `checkpoints/fan_train_stats.pt` to your repo’s `checkpoints/` folder on Drive (or copy it into the cloned project’s checkpoints dir on Colab).
+
+3. When you run training, the code will **load** stats from that file and skip the computation phase. The log will say “Loaded train stats from …”.
+
 ---
 
 ## Part 2 — Prerequisites (before you start)
@@ -237,6 +257,7 @@ run(
 |--------|------------|
 | `ModuleNotFoundError: No module named 'src'` or `No module named 'src.data'` | Run **Step 3** (project root + `sys.path` + `chdir`) and then run the training cell again. Do not run the training cell before Step 3. |
 | `FileNotFoundError` or “No files” for dataset | Check that `DATA_ROOT` is the folder that contains `fan/train/` (and `fan/test/` for eval). After mount, the path must be like `/content/drive/MyDrive/.../dcase2020-task2-dev-dataset`. |
+| No log file in `logs/` or no training progress for a long time | (1) Log file is written under the cloned project’s `logs/` (e.g. `.../semcom_asd_vqar/logs/main_train.log`). The handler flushes after each line so it should appear on Drive; refresh the folder. (2) The first phase is **computing dataset mean/std** over all train files (or `max_samples_stats` if set). With data on Drive this can take 30+ min if `max_samples_stats` is null. Use `max_samples_stats: 500` in config (Colab config already does this) so stats finish in a few minutes, then you’ll see “Data loading” and epoch logs. |
 | Log shows `Device: cpu` but config has `cuda` | The runtime has no GPU. Use **Runtime → Change runtime type → Hardware accelerator: GPU**, then re-run from Step 1 (or at least the run cell). |
 | Colab disconnected / session lost | Re-run Steps 1 → 2 → 3 → 4, then run training again. If checkpoints were saved to Drive (e.g. under the cloned repo), Phase 1/2 will resume from the saved files. |
 | Private repo clone fails | Use an HTTPS URL with a personal access token, or configure SSH keys in Colab and use the SSH clone URL. |

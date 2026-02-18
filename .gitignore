@@ -10,7 +10,7 @@ __pycache__/
 *.pyz
 
 # Model checkpoints
-checkpoints/
+/checkpoints/models/
 
 # Data (only root-level; do not ignore src/data/)
 /data/

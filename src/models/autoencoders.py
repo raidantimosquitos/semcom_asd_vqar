@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from .decoder import BasicDecoder, MobileNetV2_8x_Decoder, CNNDecoder
 from .encoder import BasicEncoder, MobileNetV2_8x_Encoder, CNNEncoder
-from .quantizer import VectorQuantizer
+from .quantizer import VectorQuantizer, VectorQuantizerEMA
 
 class BasicAutoEncoder(nn.Module):
     def __init__(self, x_dim=8192, z_dim=32, h_dim=256):
@@ -95,6 +95,7 @@ class MobileNetV2_8x_VQVAE(nn.Module):
         embedding_dim: int = 32,
         commitment_cost: float = 0.25,
         out_channels: int = 1,
+        ema: bool = False,
     ):
         super().__init__()
         self.encoder = MobileNetV2_8x_Encoder(pretrained=pretrained)
@@ -105,12 +106,20 @@ class MobileNetV2_8x_VQVAE(nn.Module):
             nn.BatchNorm2d(embedding_dim), # Keeps output centered and scaled
             nn.ReLU() # Optional: if you want non-negative codebook
         )
-
-        self.quantizer = VectorQuantizer(
-            num_embeddings=num_embeddings,
-            embedding_dim=embedding_dim,
-            commitment_cost=commitment_cost,
-        )
+        if ema:
+            self.quantizer = VectorQuantizerEMA(
+                num_embeddings=num_embeddings,
+                embedding_dim=embedding_dim,
+                commitment_cost=commitment_cost,
+                decay=0.99,
+                epsilon=1e-5,
+            )
+        else:
+            self.quantizer = VectorQuantizer(
+                num_embeddings=num_embeddings,
+                embedding_dim=embedding_dim,
+                commitment_cost=commitment_cost,
+            )
         self.decoder = MobileNetV2_8x_Decoder(
             latent_channels=embedding_dim,
             out_channels=out_channels,

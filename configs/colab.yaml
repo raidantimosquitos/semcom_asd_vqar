@@ -16,12 +16,12 @@ device: cuda
 
 phase1:
   num_epochs: 50
-  lr: 0.001
+  lr: 2e-3
   checkpoint: "./checkpoints/mobilenetv2_8x_vqvae.pth"
 
 phase2:
   num_epochs: 80
-  lr: 0.0001
+  lr: 2e-4
   checkpoint: "./checkpoints/pixelsnail_prior.pth"
 
 eval:

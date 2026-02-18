@@ -1,10 +1,43 @@
+import logging
 import os
 import glob
+from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset
 
 from src.utils.audio import collect_audio_files, load_wav, LogMelSpectrogramExtractor
+
+
+# Convention: stats saved under checkpoints as {appliance}_train_stats.pt
+def train_stats_path(checkpoint_dir: str | Path, appliance: str) -> Path:
+    """Path to saved train (mean, std) stats for an appliance."""
+    return Path(checkpoint_dir) / f"{appliance}_train_stats.pt"
+
+
+def save_train_stats(
+    checkpoint_dir: str | Path,
+    appliance: str,
+    mean: float,
+    std: float,
+) -> Path:
+    """Save train dataset mean/std to checkpoints/{appliance}_train_stats.pt."""
+    path = train_stats_path(checkpoint_dir, appliance)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"mean": mean, "std": std}, path)
+    return path
+
+
+def load_train_stats(
+    checkpoint_dir: str | Path,
+    appliance: str,
+) -> tuple[float, float] | None:
+    """Load train mean/std from checkpoints/{appliance}_train_stats.pt if it exists."""
+    path = train_stats_path(checkpoint_dir, appliance)
+    if not path.exists():
+        return None
+    data = torch.load(path, weights_only=True)
+    return float(data["mean"]), float(data["std"])
 
 
 class DCASE2020Task2Dataset(Dataset):
@@ -69,6 +102,8 @@ def compute_dataset_stats(
     dataset: DCASE2020Task2Dataset,
     max_samples: int | None = None,
     eps: float = 1e-8,
+    logger: logging.Logger | None = None,
+    log_every: int = 100,
 ) -> tuple[float, float]:
     """
     Compute mean and std over all windows in the dataset (for zero-mean unit-variance).
@@ -76,6 +111,8 @@ def compute_dataset_stats(
         dataset: DCASE2020Task2Dataset instance.
         max_samples: If set, use at most this many indices (for faster approximation).
         eps: Small value for numerical stability when computing std.
+        logger: If set, log progress every log_every samples.
+        log_every: When logger is set, log every this many samples.
     Returns:
         (mean, std) scalars.
     """
@@ -88,6 +125,8 @@ def compute_dataset_stats(
         total_sum += windows.sum().item()
         total_sq += (windows ** 2).sum().item()
         count += windows.numel()
+        if logger and (i + 1) % log_every == 0:
+            logger.info("  stats progress: %d/%d samples", i + 1, n)
     mean = total_sum / count
     var = (total_sq / count) - (mean ** 2)
     std = (var + eps) ** 0.5

@@ -12,13 +12,21 @@ import torch
 import torch.nn as nn
 
 
+class FlushingFileHandler(logging.FileHandler):
+    """FileHandler that flushes after each record so logs appear on disk (e.g. Google Drive) immediately."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        super().emit(record)
+        self.flush()
+
+
 def get_logger(
     name: str = "train",
     log_file: str | Path | None = None,
     level: int = logging.INFO,
     format_string: str | None = None,
 ) -> logging.Logger:
-    """Create or get a logger with optional file output."""
+    """Create or get a logger with optional file output. File handler flushes after each line so logs show up on Drive without delay."""
     logger = logging.getLogger(name)
     if logger.handlers:
         return logger
@@ -36,7 +44,7 @@ def get_logger(
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fh = FlushingFileHandler(log_path, encoding="utf-8")
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 

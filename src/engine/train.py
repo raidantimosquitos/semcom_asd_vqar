@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -10,7 +11,13 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
 
-from src.data.preprocessing import DCASE2020Task2Dataset, compute_dataset_stats
+from src.data.preprocessing import (
+    DCASE2020Task2Dataset,
+    compute_dataset_stats,
+    load_train_stats,
+    save_train_stats,
+    train_stats_path,
+)
 from src.models.autoencoders import BasicAutoEncoder, BasicVQVAE, MobileNetV2_8x_VQVAE
 from src.models.pixelsnail import create_pixelsnail_for_vqvae
 from src.utils.logger import log_config, log_data_loading, log_epoch_ae, log_epoch_vqvae, log_training_end
@@ -297,8 +304,10 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     num_epochs_prior = p2.get("num_epochs", 20)
     lr_vqvae = p1.get("lr", 0.001)
     lr_prior = p2.get("lr", 1e-4)
-    vqvae_checkpoint = p1.get("checkpoint", "checkpoints/mobilenetv2_8x_vqvae.pth")
-    prior_checkpoint = p2.get("checkpoint", "checkpoints/pixelsnail_prior.pth")
+    vqvae_checkpoint = p1.get("checkpoint", "checkpoints/models/mobilenetv2_8x_vqvae.pth")
+    prior_checkpoint = p2.get("checkpoint", "checkpoints/models/pixelsnail_prior.pth")
+    checkpoint_dir = str(Path(vqvae_checkpoint).resolve().parent.parent)
+    stats_checkpoint = str(Path(checkpoint_dir, "/stats/"))
 
     requested = config.get("device", "cuda")
     if requested == "cuda" and not torch.cuda.is_available():
@@ -310,9 +319,28 @@ def run_training(config: dict[str, Any], logger: logging.Logger) -> None:
     log_config(logger, config=config)
     logger.info("Device: %s", device)
 
-    # Data
+    # Data: load precomputed train stats if present, else compute and save
     dataset = DCASE2020Task2Dataset(root_dir=root_dir, appliance=appliance, mode=mode)
-    mean, std = compute_dataset_stats(dataset, max_samples=max_samples_stats)
+    stats_loaded = load_train_stats(stats_checkpoint, appliance)
+    if stats_loaded is not None:
+        mean, std = stats_loaded
+        logger.info(
+            "Loaded train stats from %s: mean=%.6f | std=%.6f",
+            train_stats_path(stats_checkpoint, appliance),
+            mean,
+            std,
+        )
+    else:
+        n_stats = len(dataset) if max_samples_stats is None else min(len(dataset), max_samples_stats)
+        logger.info(
+            "Computing dataset mean/std over %d samples (may take a while if data is on Drive)...",
+            n_stats,
+        )
+        mean, std = compute_dataset_stats(dataset, max_samples=max_samples_stats, logger=logger)
+        logger.info("Dataset mean: %.6f | std: %.6f", mean, std)
+        save_path = save_train_stats(stats_checkpoint, appliance, mean, std)
+        logger.info("Saved train stats to %s", save_path)
+        
     dataset_norm = DCASE2020Task2Dataset(
         root_dir=root_dir, appliance=appliance, mode=mode, mean=mean, std=std
     )
